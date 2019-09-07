@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 require 'mail/smtp_envelope'
+require 'mail/utilities'
 
 module Mail
   # == Sending Email with SMTP
@@ -74,6 +75,65 @@ module Mail
   # 
   #   mail.deliver!
   class SMTP
+    class UrlResolver
+
+      DEFAULTS = {
+       "smtp" => {
+          :address              => 'localhost',
+          :port                 => 25,
+          :domain               => 'localhost.localdomain',
+          :enable_starttls_auto => true
+        },
+       "smtps" => {
+          :address              => 'localhost',
+          :port                 => 465,
+          :domain               => 'localhost.localdomain',
+          :enable_starttls_auto => false,
+          :tls                  => true
+        }
+      }
+
+      def initialize(url)
+        @uri = uri_parser.parse(url)
+        @query = uri.query
+      end
+
+      def to_hash
+        config = raw_config
+        config.map { |key, value| config[key] = uri_parser.unescape(value) if value.is_a? String }
+        config
+      end
+
+      private
+        attr_reader :uri
+
+        def raw_config
+          scheme_defaults.merge(query_hash).merge({
+              :address              => uri.host,
+              :port                 => uri.port,
+              :user_name            => uri.user,
+              :password             => uri.password
+            }.delete_if {|_key, value| Utilities.blank?(value) })
+        end
+
+        def uri_parser
+          Utilities.uri_parser
+        end
+
+        def query_hash
+          @query_hash = begin
+            result = Hash[(@query || "").split("&").map { |pair| k,v = pair.split("="); [k.to_sym, v] }]
+            result[:open_timeout] &&= result[:open_timeout].to_i
+            result[:read_timeout] &&= result[:read_timeout].to_i
+            result
+          end
+        end
+
+        def scheme_defaults
+          DEFAULTS[uri.scheme]
+        end
+    end
+
     attr_accessor :settings
 
     DEFAULTS = {
@@ -92,8 +152,13 @@ module Mail
       :read_timeout         => nil
     }
 
-    def initialize(values)
-      self.settings = DEFAULTS.merge(values)
+    def initialize(config)
+      settings = DEFAULTS
+
+      if config.has_key?(:url)
+        settings = settings.merge(UrlResolver.new(config.delete(:url)).to_hash)
+      end
+      self.settings = settings.merge(config)
     end
 
     def deliver!(mail)
