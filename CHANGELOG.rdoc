@@ -1,4 +1,9 @@
-== Version 2.8.1 (unreleased)
+== Version 2.8.2 (unreleased)
+
+Features:
+* Configure smtp-delivery using a url @eval
+
+== Version 2.8.1
 
 Bug Fixes:
 * Regression: sendmail accepts string :arguments (@sebbASF)
