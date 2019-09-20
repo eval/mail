@@ -9,12 +9,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
-    - name: Provision ruby
-      run: |
-        apt-get update
-        apt-get install -y ruby rubygems
-        gem install bundler -v 1.16.6
+    - uses: actions/setup-ruby@v1
+      with:
+        ruby-version: '1.8.7'
     - name: Build and test with Rake
       run: |
+        ruby -v
+        gem -v
+        bundle -v
         bundle install --jobs 4 --retry 3
         bundle exec rake
